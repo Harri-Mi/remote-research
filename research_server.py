@@ -11,8 +11,22 @@ PAPER_DIR = "papers"
 ## Definition on course video, gives error on Render.com
 ## mcp = FastMCP("research", port=8001)
 #
-## Definition with standard Render.com port
-mcp = FastMCP("research", port=10000)
+# --- Key Change for Render.com ---
+# Read the port from the environment variable PORT.
+# Render.com will set this variable.
+# Default to 10000 if PORT is not set (e.g., for local development).
+port = int(os.environ.get("PORT", 10000))
+# Initialize FastMCP server
+# You also need to ensure the server listens on '0.0.0.0' to be accessible
+# externally by Render.com's services.
+# Check if FastMCP takes a 'host' argument. If it does, use it.
+# If FastMCP defaults to listening on '0.0.0.0' or a similar "all interfaces"
+# address when a port is specified, you might not need to explicitly set the host.
+# Example if FastMCP supports a 'host' parameter:
+# mcp = FastMCP("research", host="0.0.0.0", port=port)
+# For now, we'll just use the dynamic port. You may need to adjust the host.
+mcp = FastMCP("research", port=port)
+# --- End of Key Change ---
 
 @mcp.tool()
 def search_papers(topic: str, max_results: int = 5) -> List[str]:
