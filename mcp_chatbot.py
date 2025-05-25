@@ -1,11 +1,8 @@
 from dotenv import load_dotenv
-from anthropic import Anthropic
+import ollama # Replaced anthropic with ollama
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-# --- SSE imports added below ---
-from mcp.client.sse import sse_client  # Added for SSE support
-from mcp import SseServerParameters    # Added for SSE support
-# --- end SSE imports ---
+# --- SSE imports removed ---
 from contextlib import AsyncExitStack
 import json
 import asyncio
@@ -18,7 +15,7 @@ load_dotenv()
 class MCP_ChatBot:
     def __init__(self):
         self.exit_stack = AsyncExitStack()
-        self.anthropic = Anthropic()
+        self.ollama = ollama.AsyncClient() # Replaced Anthropic with ollama.AsyncClient
         # Tools list required for Anthropic API
         self.available_tools = []
         # Prompts list for quick display 
@@ -28,21 +25,13 @@ class MCP_ChatBot:
 
     async def connect_to_server(self, server_name, server_config):
         try:
-            # --- Original stdio_client code (commented out) ---
-            # server_params = StdioServerParameters(**server_config)
-            # stdio_transport = await self.exit_stack.enter_async_context(
-            #     stdio_client(server_params)
-            # )
-            # read, write = stdio_transport
-            # --- End original stdio_client code ---
-
-            # --- SSE client code below ---
-            server_params = SseServerParameters(**server_config)  # Use SseServerParameters
-            sse_transport = await self.exit_stack.enter_async_context(
-                sse_client(server_params)  # Use sse_client here
+            # --- Using stdio_client code ---
+            server_params = StdioServerParameters(**server_config)
+            stdio_transport = await self.exit_stack.enter_async_context(
+                stdio_client(server_params)
             )
-            read, write = sse_transport
-            # --- End SSE client code ---
+            read, write = stdio_transport
+            # --- End stdio_client code ---
 
             session = await self.exit_stack.enter_async_context(
                 ClientSession(read, write)
@@ -98,45 +87,90 @@ class MCP_ChatBot:
     async def process_query(self, query):
         messages = [{'role':'user', 'content':query}]
         
+        # Construct a system prompt that includes tool descriptions
+        # This is a common way to make LLMs aware of available tools
+        system_prompt_parts = ["You have the following tools available:"]
+        for tool in self.available_tools:
+            system_prompt_parts.append(f"- Name: {tool['name']}")
+            system_prompt_parts.append(f"  Description: {tool['description']}")
+            system_prompt_parts.append(f"  Input Schema: {json.dumps(tool['input_schema'])}")
+        system_prompt_parts.append("If you need to use a tool, respond with a JSON object with two keys: 'tool_name' and 'tool_input'. For example: {\"tool_name\": \"tool_name\", \"tool_input\": {\"arg1\": \"value1\"}}.")
+        system_message = {"role": "system", "content": "\n".join(system_prompt_parts)}
+        
+        # Prepend system message to messages list if not already present or if it's different
+        # This is a simplified check; a more robust solution might involve checking content
+        if not messages or messages[0]['role'] != 'system':
+            current_messages = [system_message] + messages
+        else:
+            current_messages = messages # Assume system prompt is already there and up-to-date for subsequent turns
+
         while True:
-            response = self.anthropic.messages.create(
-                max_tokens = 2024,
-                model = 'claude-3-7-sonnet-20250219', 
-                tools = self.available_tools,
-                messages = messages
+            response = await self.ollama.chat(
+                model='llama2', # Changed model name
+                messages=current_messages
             )
             
-            assistant_content = []
+            assistant_message = response['message']
+            assistant_content_text = assistant_message['content']
+            print(assistant_content_text) # Print model's text response
+
+            messages.append({'role': 'assistant', 'content': assistant_content_text})
+            current_messages.append({'role': 'assistant', 'content': assistant_content_text})
+
+
             has_tool_use = False
-            
-            for content in response.content:
-                if content.type == 'text':
-                    print(content.text)
-                    assistant_content.append(content)
-                elif content.type == 'tool_use':
-                    has_tool_use = True
-                    assistant_content.append(content)
-                    messages.append({'role':'assistant', 'content':assistant_content})
-                    
-                    # Get session and call tool
-                    session = self.sessions.get(content.name)
-                    if not session:
-                        print(f"Tool '{content.name}' not found.")
-                        break
-                        
-                    result = await session.call_tool(content.name, arguments=content.input)
-                    messages.append({
-                        "role": "user", 
-                        "content": [
-                            {
-                                "type": "tool_result",
-                                "tool_use_id": content.id,
-                                "content": result.content
+            try:
+                # Attempt to parse the assistant's response as JSON for tool use
+                # This is a common convention when direct tool support isn't available
+                tool_call_info = json.loads(assistant_content_text)
+                if isinstance(tool_call_info, dict) and 'tool_name' in tool_call_info and 'tool_input' in tool_call_info:
+                    tool_name = tool_call_info['tool_name']
+                    tool_input = tool_call_info['tool_input']
+
+                    if tool_name in [t['name'] for t in self.available_tools]:
+                        has_tool_use = True
+                        print(f"Attempting to call tool: {tool_name} with input: {tool_input}")
+
+                        session = self.sessions.get(tool_name)
+                        if not session:
+                            print(f"Tool '{tool_name}' not found in active sessions.")
+                            # Add a message to current_messages indicating tool not found
+                            tool_result_message = {
+                                'role': 'user', # Or 'tool' if Ollama supports it, user for now
+                                'content': f"Error: Tool '{tool_name}' not found or session unavailable."
                             }
-                        ]
-                    })
-            
-            # Exit loop if no tool was used
+                            messages.append(tool_result_message)
+                            current_messages.append(tool_result_message)
+                            break 
+
+                        result = await session.call_tool(tool_name, arguments=tool_input)
+                        
+                        # Construct the tool result message to send back to the model
+                        # The format might need adjustment based on how Ollama expects tool results
+                        tool_result_content = result.content if hasattr(result, 'content') else str(result)
+                        tool_result_message = {
+                            'role': 'user', # Simulating a user message that provides tool results
+                            'content': f"Tool {tool_name} execution result: {tool_result_content}"
+                        }
+                        messages.append(tool_result_message)
+                        current_messages.append(tool_result_message)
+                    else:
+                        # Model generated JSON but not a valid tool or format
+                        pass # Continue as a normal text response
+            except json.JSONDecodeError:
+                # Assistant content is not JSON, so it's a regular text response
+                pass
+            except Exception as e:
+                print(f"Error processing tool call: {e}")
+                # Add error message to current_messages
+                error_message = {
+                    'role': 'user',
+                    'content': f"Error processing tool call: {e}"
+                }
+                messages.append(error_message)
+                current_messages.append(error_message)
+                break # Exit loop on other errors
+
             if not has_tool_use:
                 break
 

@@ -1,10 +1,39 @@
+[tool.uv]
+dev-dependencies = []
+
+[tool.uv.sources]
+mcp-project = { workspace = "." }
+
 [project]
 name = "mcp-project"
 version = "0.1.0"
 description = "Add your description here"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "arxiv>=2.2.0",
-    "mcp>=1.9.1",
+authors = [
+    { name = "Me", email = "me@example.com" },
 ]
+dependencies = [
+    "mcp>=1.9.0",
+    "arxiv>=2.2.0",
+    "ollama",
+    "nest_asyncio",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+
+[project.scripts]
+mcp-chatbot = "mcp_chatbot:main"
+research-server = "research_server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = []
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_project"]
