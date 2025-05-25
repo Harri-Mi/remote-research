@@ -11,9 +11,8 @@ PAPER_DIR = "papers"
 ## Definition on course video, gives error on Render.com
 ## mcp = FastMCP("research", port=8001)
 #
-## Definition without port
-mcp = FastMCP("research")
-
+## Definition with standard Render.com port
+mcp = FastMCP("research", port=10000)
 
 @mcp.tool()
 def search_papers(topic: str, max_results: int = 5) -> List[str]:
