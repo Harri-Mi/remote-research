@@ -25,7 +25,7 @@ port = int(os.environ.get("PORT", 10000))
 # Example if FastMCP supports a 'host' parameter:
 # mcp = FastMCP("research", host="0.0.0.0", port=port)
 # For now, we'll just use the dynamic port. You may need to adjust the host.
-mcp = FastMCP("research", host="0.0.0.0" port=port)
+mcp = FastMCP("research", host="0.0.0.0", port=port)
 # --- End of Key Change ---
 
 @mcp.tool()
