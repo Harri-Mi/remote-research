@@ -11,8 +11,7 @@
         },
         
         "research": {
-            "command": "uv",
-            "args": ["run", "research_server.py"]
+            "url": "https://remote-research-ljkf.onrender.com"
         },
         
         "fetch": {
@@ -21,4 +20,3 @@
         }
     }
 }
-  
