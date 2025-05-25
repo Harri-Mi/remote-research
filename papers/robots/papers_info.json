@@ -1,0 +1,22 @@
+{
+  "1907.13114v1": {
+    "title": "The Use of Agricultural Robots in Orchard Management",
+    "authors": [
+      "Qin Zhang",
+      "Manoj Karkee",
+      "Amy Tabb"
+    ],
+    "summary": "Book chapter that summarizes recent research on agricultural robotics in\norchard management, including Robotic pruning, Robotic thinning, Robotic\nspraying, Robotic harvesting, Robotic fruit transportation, and future trends.",
+    "pdf_url": "http://arxiv.org/pdf/1907.13114v1",
+    "published": "2019-07-30"
+  },
+  "2208.05095v1": {
+    "title": "Robotics in Snow and Ice",
+    "authors": [
+      "Fran\u00e7ois Pomerleau"
+    ],
+    "summary": "Definition: The terms \"robotics in snow and ice\" refers to robotic systems\nbeing studied, developed, and used in areas where water can be found in its\nsolid state. This specialized branch of field robotics investigates the impact\nof extreme conditions related to cold environments on autonomous vehicles.",
+    "pdf_url": "http://arxiv.org/pdf/2208.05095v1",
+    "published": "2022-08-10"
+  }
+}
