@@ -2,7 +2,8 @@ from dotenv import load_dotenv
 import ollama # Replaced anthropic with ollama
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-# --- SSE imports removed ---
+from mcp.client.sse import sse_client  # Add this import at the top
+
 from contextlib import AsyncExitStack
 import json
 import asyncio
@@ -25,13 +26,20 @@ class MCP_ChatBot:
 
     async def connect_to_server(self, server_name, server_config):
         try:
-            # --- Using stdio_client code ---
-            server_params = StdioServerParameters(**server_config)
-            stdio_transport = await self.exit_stack.enter_async_context(
-                stdio_client(server_params)
-            )
-            read, write = stdio_transport
-            # --- End stdio_client code ---
+            # --- Support both stdio and remote (SSE) servers ---
+            if "url" in server_config:
+                # Connect via SSE/HTTP
+                sse_transport = await self.exit_stack.enter_async_context(
+                    sse_client(server_config["url"])
+                )
+                read, write = sse_transport
+            else:
+                # Connect via stdio (local process)
+                server_params = StdioServerParameters(**server_config)
+                stdio_transport = await self.exit_stack.enter_async_context(
+                    stdio_client(server_params)
+                )
+                read, write = stdio_transport
 
             session = await self.exit_stack.enter_async_context(
                 ClientSession(read, write)
