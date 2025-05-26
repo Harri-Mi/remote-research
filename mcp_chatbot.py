@@ -105,8 +105,12 @@ class MCP_ChatBot:
             current_messages = messages # Assume system prompt is already there and up-to-date for subsequent turns
 
         while True:
+            # response = await self.ollama.chat(
+            #     model='llama2', # Changed model name
+            #     messages=current_messages
+            # )
             response = await self.ollama.chat(
-                model='llama2', # Changed model name
+                model='gemma:2b', # Changed model name to gemma:2b
                 messages=current_messages
             )
             
